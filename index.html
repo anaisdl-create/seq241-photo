@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Séquence 241 — la photo envoyée à Mathieu</title>
+<!--
+  SÉQUENCE 241 — Emilie prend une photo et l'envoie à Mathieu par MMS.
+  Mathieu répond au signal de l'accessoiriste.
+
+  À importer dans Cinéanim comme animation « créée ailleurs » (le .zip).
+
+  DÉROULÉ
+    1. Écran noir.
+    2. Un toucher : la conversation avec Mathieu s'ouvre.
+    3. Elle touche l'appareil photo (à côté du champ de saisie) : la vraie caméra s'ouvre.
+    4. Elle appuie sur le rond blanc : la photo attend dans la barre de saisie.
+    5. Elle touche la flèche bleue : la photo part.
+    6. Accessoiriste : espace, flèche droite ou Entrée → la réponse de Mathieu tombe.
+    7. Deux touchers rapides en haut à gauche (juste sous le bord) : retour à l'écran noir.
+
+  FILET DE SÉCURITÉ : au clavier, chaque appui fait avancer d'un cran, même si
+  la photo n'a pas été prise (c'est alors secours.jpg qui part, si le fichier
+  est dans le dossier). R = retour au début.
+
+  LA PHOTO PRISE est gardée sur le téléphone : dans la galerie (dossier
+  Cineanim) avec l'appli Cinéanim Android, sinon téléchargée au retour au début
+  (jamais pendant la prise : la barre de téléchargement se verrait).
+-->
+<style>
+  :root {
+    --fond: #000;
+    --texte: #fff;
+    --texte-doux: rgba(255, 255, 255, 0.55);
+    --bulle-recue: #2a2a2c;
+    --bulle-envoyee: #3a6df0;
+    --rond: #1c1c1e;
+    --bord: rgba(255, 255, 255, 0.28);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: Roboto, "Google Sans", system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .ecran { position: fixed; inset: 0; display: none; flex-direction: column; }
+  .ecran.actif { display: flex; }
+
+  /* --- Écran noir --- */
+  #noir { background: #000; }
+
+  /* --- Conversation --- */
+  #conversation { background: var(--fond); }
+  .barre-etat {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 22px 4px;
+    font-size: 14px; font-weight: 500;
+  }
+  .barre-etat .droite { display: flex; gap: 6px; align-items: center; }
+  .barre-etat svg { height: 13px; fill: #fff; }
+  .entete {
+    display: flex; flex-direction: column; align-items: center;
+    position: relative; padding: 18px 16px 14px;
+  }
+  .retour { position: absolute; left: 10px; top: 32px; }
+  .retour svg { width: 28px; height: 28px; stroke: #4a8cff; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .pastille {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 600;
+  }
+  .nom { margin-top: 8px; font-size: 16px; }
+  .nom span { color: var(--texte-doux); margin-left: 4px; }
+
+  .fil {
+    flex: 1; overflow-y: auto; padding: 8px 14px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .bulle {
+    max-width: 75%; padding: 11px 16px; border-radius: 22px;
+    font-size: 16px; line-height: 1.35; word-wrap: break-word;
+    animation: arrive 0.25s ease-out;
+  }
+  .bulle.recue { align-self: flex-start; background: var(--bulle-recue); }
+  .bulle.envoyee { align-self: flex-end; background: var(--bulle-envoyee); }
+  .bulle.photo { padding: 0; background: none; overflow: hidden; border-radius: 18px; max-width: 68%; }
+  .bulle.photo img { display: block; width: 100%; }
+  .statut { align-self: flex-end; font-size: 11px; color: var(--texte-doux); margin: -2px 6px 2px; }
+  @keyframes arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .saisie {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+  .rond {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    background: var(--rond); border: none; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .rond svg { width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .champ {
+    flex: 1; min-width: 0; min-height: 40px;
+    border: 1px solid var(--bord); border-radius: 22px;
+    padding: 8px 14px; color: var(--texte-doux); font-size: 15px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .champ svg { width: 18px; height: 18px; stroke: var(--texte-doux); fill: none; stroke-width: 2; stroke-linecap: round; }
+  .champ img { height: 72px; border-radius: 12px; display: block; }
+  .champ.jointe { padding: 6px; }
+  .envoyer {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: var(--bulle-envoyee); border: none;
+    display: none; align-items: center; justify-content: center;
+  }
+  .envoyer svg { width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .avec-photo .envoyer { display: flex; }
+  .avec-photo #appareil { display: none; }
+
+  /* --- Appareil photo --- */
+  #camera { background: #000; }
+  .viseur { position: relative; flex: 1; overflow: hidden; }
+  .viseur video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .eclair { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .eclair.flash { animation: flash 0.25s ease-out; }
+  @keyframes flash { from { opacity: 0.85; } to { opacity: 0; } }
+  .commandes {
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 20px 24px calc(env(safe-area-inset-bottom, 0px) + 30px);
+  }
+  .commandes .rond { width: 46px; height: 46px; background: rgba(255, 255, 255, 0.15); }
+  .declencheur {
+    width: 76px; height: 76px; border-radius: 50%;
+    border: 5px solid #fff; background: transparent; padding: 4px;
+  }
+  .declencheur span { display: block; width: 100%; height: 100%; border-radius: 50%; background: #fff; transition: transform 0.1s; }
+  .declencheur:active span { transform: scale(0.88); }
+
+  /* Zone invisible du retour au début : en haut à gauche, sous le coin de Cinéanim. */
+  #zone-retour { position: fixed; left: 0; top: 0; width: 120px; height: 130px; z-index: 50; }
+</style>
+</head>
+<body>
+
+<!-- 1. Écran noir -->
+<section id="noir" class="ecran actif"></section>
+
+<!-- 2. La conversation -->
+<section id="conversation" class="ecran">
+  <div class="barre-etat">
+    <span id="heure"></span>
+    <span class="droite">
+      <svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4"/><rect x="5" y="5" width="3" height="7"/><rect x="10" y="2" width="3" height="10"/><rect x="15" y="0" width="3" height="12"/></svg>
+      <svg viewBox="0 0 26 12"><rect x="0.5" y="0.5" width="22" height="11" rx="2.5" fill="none" stroke="#fff"/><rect id="jauge" x="2" y="2" width="15" height="8" rx="1.2"/><rect x="23.5" y="4" width="2" height="4" rx="1"/></svg>
+    </span>
+  </div>
+  <div class="entete">
+    <span class="retour"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <span class="pastille" id="pastille"></span>
+    <span class="nom" id="nom"></span>
+  </div>
+  <div class="fil" id="fil"></div>
+  <div class="saisie" id="saisie">
+    <span class="rond"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+    <button class="rond" id="appareil" aria-label="Appareil photo">
+      <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </button>
+    <span class="champ" id="champ">Message texte · SMS
+      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </span>
+    <button class="envoyer" id="envoyer" aria-label="Envoyer">
+      <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- 3. L'appareil photo -->
+<section id="camera" class="ecran">
+  <div class="viseur">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="eclair" id="eclair"></div>
+  </div>
+  <div class="commandes">
+    <span class="rond"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg></span>
+    <button class="declencheur" id="declencheur" aria-label="Prendre la photo"><span></span></button>
+    <span class="rond"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5l2-2.5M20 20v-5h-5"/></svg></span>
+  </div>
+</section>
+
+<div id="zone-retour"></div>
+
+<script>
+/* ===================== À RÉGLER ===================== */
+const REGLAGES = {
+  contact: 'Mathieu',
+  couleurPastille: '#c0392b',
+  heure: '16:20',
+  batterie: 64,               // en %
+  // Ce qui est déjà dans la conversation quand elle s'ouvre (peut rester vide : []).
+  // de: 'lui' = bulle grise de Mathieu ; de: 'elle' = bulle bleue d'Emilie.
+  dejaAffiches: [
+    { de: 'lui', texte: 'Alors, elles sont comment ?' },
+  ],
+  reponse: 'Trop mignonnes ! Tu avais raison mon amour. Hâte de vous retrouver',
+  // Mention sous la photo envoyée ('' pour rien).
+  statutEnvoi: 'Envoyé',
+  // Photo qui part si la caméra ne répond pas (mettre secours.jpg dans le dossier).
+  photoSecours: 'secours.jpg',
+  sequence: '241',
+};
+/* ==================================================== */
+
+const $ = id => document.getElementById(id);
+let etape = 'noir';           // noir → conversation → camera → jointe → envoyee → repondu
+let flux = null;
+let photoJointe = null;       // { url, blob }
+const photosAGarder = [];     // à télécharger au retour au début (hors appli Android)
+
+// --- Habillage ---
+$('heure').textContent = REGLAGES.heure;
+$('jauge').setAttribute('width', String(Math.max(1, 19 * REGLAGES.batterie / 100)));
+$('pastille').textContent = REGLAGES.contact.charAt(0).toUpperCase();
+$('pastille').style.background = REGLAGES.couleurPastille;
+$('nom').innerHTML = '';
+$('nom').append(REGLAGES.contact, Object.assign(document.createElement('span'), { textContent: '›' }));
+
+function montrer(id) {
+  document.querySelectorAll('.ecran').forEach(e => e.classList.toggle('actif', e.id === id));
+}
+
+function bulle(de, texte) {
+  const b = document.createElement('div');
+  b.className = 'bulle ' + (de === 'lui' ? 'recue' : 'envoyee');
+  b.textContent = texte;
+  $('fil').append(b);
+  $('fil').scrollTop = $('fil').scrollHeight;
+}
+
+function bullePhoto(url) {
+  const b = document.createElement('div');
+  b.className = 'bulle envoyee photo';
+  const img = document.createElement('img');
+  img.src = url;
+  img.onload = () => { $('fil').scrollTop = $('fil').scrollHeight; };
+  b.append(img);
+  $('fil').append(b);
+  if (REGLAGES.statutEnvoi) {
+    const s = document.createElement('div');
+    s.className = 'statut';
+    s.textContent = REGLAGES.statutEnvoi;
+    $('fil').append(s);
+  }
+}
+
+// --- Sons (fabriqués, aucun fichier) ---
+let audio = null;
+function debloquerSon() {
+  if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
+  if (audio && audio.state === 'suspended') audio.resume();
+}
+function bip(freqs, duree = 0.09, volume = 0.18) {
+  if (!audio) return;
+  let t = audio.currentTime;
+  for (const f of freqs) {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(volume, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + duree);
+    o.connect(g).connect(audio.destination);
+    o.start(t); o.stop(t + duree);
+    t += duree * 0.9;
+  }
+}
+const sonEnvoi = () => bip([660, 990], 0.07, 0.12);
+const sonRecu = () => bip([880, 1320], 0.12, 0.2);
+const sonDeclencheur = () => bip([2400], 0.04, 0.1);
+
+// --- Déroulé ---
+function remettreAZero() {
+  couperCamera();
+  garderLesPhotos();
+  if (photoJointe) { photoJointe = null; }
+  $('fil').innerHTML = '';
+  for (const m of REGLAGES.dejaAffiches) bulle(m.de, m.texte);
+  viderBarre();
+  etape = 'noir';
+  montrer('noir');
+}
+
+function ouvrirConversation() {
+  etape = 'conversation';
+  montrer('conversation');
+  $('fil').scrollTop = $('fil').scrollHeight;
+}
+
+async function ouvrirCamera() {
+  etape = 'camera';
+  montrer('camera');
+  try {
+    flux = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    if (etape !== 'camera') { couperCamera(); return; }
+    $('video').srcObject = flux;
+    await $('video').play().catch(() => {});
+  } catch {
+    flux = null;   // pas de caméra : le déclencheur prendra la photo de secours
+  }
+}
+
+function couperCamera() {
+  if (flux) flux.getTracks().forEach(t => t.stop());
+  flux = null;
+  $('video').srcObject = null;
+}
+
+function declencher() {
+  const v = $('video');
+  sonDeclencheur();
+  $('eclair').classList.remove('flash'); void $('eclair').offsetWidth; $('eclair').classList.add('flash');
+  if (!flux || !v.videoWidth) { couperCamera(); joindre(null); return; }
+  const toile = document.createElement('canvas');
+  toile.width = v.videoWidth; toile.height = v.videoHeight;
+  toile.getContext('2d').drawImage(v, 0, 0);
+  toile.toBlob(blob => { couperCamera(); joindre(blob); }, 'image/jpeg', 0.9);
+}
+
+/** La photo attend dans la barre de saisie. blob null = photo de secours. */
+function joindre(blob) {
+  photoJointe = blob ? { url: URL.createObjectURL(blob), blob } : { url: REGLAGES.photoSecours, blob: null };
+  const champ = $('champ');
+  champ.classList.add('jointe');
+  champ.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = photoJointe.url;
+  img.onerror = () => img.remove();
+  champ.append(img);
+  $('saisie').classList.add('avec-photo');
+  etape = 'jointe';
+  montrer('conversation');
+}
+
+function viderBarre() {
+  const champ = $('champ');
+  champ.classList.remove('jointe');
+  champ.innerHTML = 'Message texte · SMS <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+  $('saisie').classList.remove('avec-photo');
+}
+
+function envoyer() {
+  if (!photoJointe) joindre(null);
+  bullePhoto(photoJointe.url);
+  sonEnvoi();
+  if (photoJointe.blob) enregistrer(photoJointe.blob);
+  photoJointe = null;
+  viderBarre();
+  etape = 'envoyee';
+}
+
+function reponse() {
+  bulle('lui', REGLAGES.reponse);
+  sonRecu();
+  if (navigator.vibrate) navigator.vibrate(200);
+  etape = 'repondu';
+}
+
+/** Le signal de l'accessoiriste (et le filet de sécurité) : un cran plus loin. */
+function avancer() {
+  debloquerSon();
+  switch (etape) {
+    case 'noir': ouvrirConversation(); break;
+    case 'conversation': joindre(null); envoyer(); break;
+    case 'camera': couperCamera(); joindre(null); envoyer(); break;
+    case 'jointe': envoyer(); break;
+    case 'envoyee': reponse(); break;
+  }
+}
+
+// --- Garder la photo ---
+function nomPhoto() {
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return `seq${REGLAGES.sequence}-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
+}
+
+/** L'appli Cinéanim Android range la photo en silence ; ailleurs, on attend le retour au début. */
+function enregistrer(blob) {
+  const nom = nomPhoto();
+  const pont = window.CineanimAndroid || (window.parent && window.parent.CineanimAndroid);
+  if (pont && pont.enregistrerPhoto) {
+    const lecteur = new FileReader();
+    lecteur.onload = () => {
+      let ok = false;
+      try { ok = pont.enregistrerPhoto(String(lecteur.result).split(',')[1], nom); } catch {}
+      if (!ok) photosAGarder.push({ blob, nom });
+    };
+    lecteur.readAsDataURL(blob);
+  } else {
+    photosAGarder.push({ blob, nom });
+  }
+}
+
+function garderLesPhotos() {
+  while (photosAGarder.length) {
+    const { blob, nom } = photosAGarder.shift();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nom + '.jpg';
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+}
+
+// --- Touchers ---
+$('noir').addEventListener('click', () => { debloquerSon(); if (etape === 'noir') ouvrirConversation(); });
+$('appareil').addEventListener('click', e => { e.stopPropagation(); debloquerSon(); if (etape === 'conversation') ouvrirCamera(); });
+$('declencheur').addEventListener('click', e => { e.stopPropagation(); if (etape === 'camera') declencher(); });
+$('envoyer').addEventListener('click', e => { e.stopPropagation(); if (etape === 'jointe') envoyer(); });
+
+// Deux touchers rapides en haut à gauche : retour au début. Un seul : rien.
+let dernierToucher = 0;
+$('zone-retour').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const t = performance.now();
+  if (t - dernierToucher < 450) { dernierToucher = 0; remettreAZero(); }
+  else dernierToucher = t;
+});
+
+// --- Clavier Bluetooth de l'accessoiriste ---
+document.addEventListener('keydown', e => {
+  if ([' ', 'ArrowRight', 'ArrowDown', 'Enter', 'PageDown'].includes(e.key)) { e.preventDefault(); avancer(); }
+  else if (e.key === 'r' || e.key === 'R') remettreAZero();
+});
+
+// L'autorisation de la caméra, demandée tout de suite : jamais pendant la prise.
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+    .then(f => f.getTracks().forEach(t => t.stop()))
+    .catch(() => {});
+}
+
+remettreAZero();
+</script>
+</body>
+</html>
