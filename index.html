@@ -259,12 +259,15 @@ function bullePhoto(url) {
   img.onload = () => { $('fil').scrollTop = $('fil').scrollHeight; };
   b.append(img);
   $('fil').append(b);
+  let s = null;
   if (REGLAGES.statutEnvoi) {
-    const s = document.createElement('div');
+    s = document.createElement('div');
     s.className = 'statut';
     s.textContent = REGLAGES.statutEnvoi;
     $('fil').append(s);
   }
+  // Pas de photo (ni prise, ni de secours) : rien plutôt qu'une image cassée à l'écran.
+  img.onerror = () => { b.remove(); if (s) s.remove(); };
 }
 
 // --- Sons (fabriqués, aucun fichier) ---
