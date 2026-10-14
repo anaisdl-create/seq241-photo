@@ -20,7 +20,8 @@
     3. Elle touche l'appareil photo (à côté du champ de saisie) : la vraie caméra s'ouvre.
     4. Elle appuie sur le rond blanc : la photo attend dans la barre de saisie.
     5. Elle touche la flèche bleue : la photo part.
-    6. Accessoiriste : espace, flèche droite ou Entrée → la réponse de Mathieu tombe.
+    6. La réponse de Mathieu tombe au toucher de la comédienne (n'importe où sur
+       la conversation) ou au clavier Bluetooth (espace, flèche droite, Entrée).
     7. Deux touchers rapides en haut à gauche (juste sous le bord) : retour à l'écran noir.
 
   FILET DE SÉCURITÉ : au clavier, chaque appui fait avancer d'un cran, même si
@@ -73,8 +74,9 @@
   }
   .retour { position: absolute; left: 10px; top: 32px; }
   .retour svg { width: 28px; height: 28px; stroke: #4a8cff; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .pastille img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
   .pastille {
-    width: 56px; height: 56px; border-radius: 50%;
+    width: 56px; height: 56px; border-radius: 50%; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
     font-size: 24px; font-weight: 600;
   }
@@ -206,9 +208,9 @@ const REGLAGES = {
   batterie: 64,               // en %
   // Ce qui est déjà dans la conversation quand elle s'ouvre (peut rester vide : []).
   // de: 'lui' = bulle grise de Mathieu ; de: 'elle' = bulle bleue d'Emilie.
-  dejaAffiches: [
-    { de: 'lui', texte: 'Alors, elles sont comment ?' },
-  ],
+  dejaAffiches: [],
+  // Photo du contact dans la pastille ('' = l'initiale sur la couleur).
+  photoContact: 'contact.jpg',
   reponse: 'Trop mignonnes ! Tu avais raison mon amour. Hâte de vous retrouver',
   // Mention sous la photo envoyée ('' pour rien).
   statutEnvoi: 'Envoyé',
@@ -229,6 +231,11 @@ $('heure').textContent = REGLAGES.heure;
 $('jauge').setAttribute('width', String(Math.max(1, 19 * REGLAGES.batterie / 100)));
 $('pastille').textContent = REGLAGES.contact.charAt(0).toUpperCase();
 $('pastille').style.background = REGLAGES.couleurPastille;
+if (REGLAGES.photoContact) {
+  const photo = new Image();
+  photo.onload = () => { $('pastille').textContent = ''; $('pastille').append(photo); };
+  photo.src = REGLAGES.photoContact;
+}
 $('nom').innerHTML = '';
 $('nom').append(REGLAGES.contact, Object.assign(document.createElement('span'), { textContent: '›' }));
 
@@ -425,6 +432,9 @@ $('noir').addEventListener('click', () => { debloquerSon(); if (etape === 'noir'
 $('appareil').addEventListener('click', e => { e.stopPropagation(); debloquerSon(); if (etape === 'conversation') ouvrirCamera(); });
 $('declencheur').addEventListener('click', e => { e.stopPropagation(); if (etape === 'camera') declencher(); });
 $('envoyer').addEventListener('click', e => { e.stopPropagation(); if (etape === 'jointe') envoyer(); });
+// La réponse de Mathieu : au toucher du comédien n'importe où sur la conversation
+// (une fois la photo partie), ou au clavier Bluetooth.
+$('conversation').addEventListener('click', () => { debloquerSon(); if (etape === 'envoyee') reponse(); });
 
 // Deux touchers rapides en haut à gauche : retour au début. Un seul : rien.
 let dernierToucher = 0;
