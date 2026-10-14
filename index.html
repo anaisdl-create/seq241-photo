@@ -28,9 +28,7 @@
   la photo n'a pas été prise (c'est alors secours.jpg qui part, si le fichier
   est dans le dossier). R = retour au début.
 
-  LA PHOTO PRISE est gardée sur le téléphone : dans la galerie (dossier
-  Cineanim) avec l'appli Cinéanim Android, sinon téléchargée au retour au début
-  (jamais pendant la prise : la barre de téléchargement se verrait).
+  LA PHOTO PRISE n'est pas enregistrée sur le téléphone.
 -->
 <style>
   :root {
@@ -230,7 +228,6 @@ const $ = id => document.getElementById(id);
 let etape = 'noir';           // noir → conversation → camera → jointe → envoyee → repondu
 let flux = null;
 let photoJointe = null;       // { url, blob }
-const photosAGarder = [];     // à télécharger au retour au début (hors appli Android)
 
 // --- Habillage ---
 $('heure').textContent = REGLAGES.heure;  // vide = rien
@@ -304,7 +301,6 @@ const sonDeclencheur = () => bip([2400], 0.04, 0.1);
 // --- Déroulé ---
 function remettreAZero() {
   couperCamera();
-  garderLesPhotos();
   if (photoJointe) { photoJointe = null; }
   $('fil').innerHTML = '';
   for (const m of REGLAGES.dejaAffiches) bulle(m.de, m.texte);
@@ -378,7 +374,6 @@ function envoyer() {
   if (!photoJointe) joindre(null);
   bullePhoto(photoJointe.url);
   sonEnvoi();
-  if (photoJointe.blob) enregistrer(photoJointe.blob);
   photoJointe = null;
   viderBarre();
   etape = 'envoyee';
@@ -400,41 +395,6 @@ function avancer() {
     case 'camera': couperCamera(); joindre(null); envoyer(); break;
     case 'jointe': envoyer(); break;
     case 'envoyee': reponse(); break;
-  }
-}
-
-// --- Garder la photo ---
-function nomPhoto() {
-  const d = new Date(), z = n => String(n).padStart(2, '0');
-  return `seq${REGLAGES.sequence}-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
-}
-
-/** L'appli Cinéanim Android range la photo en silence ; ailleurs, on attend le retour au début. */
-function enregistrer(blob) {
-  const nom = nomPhoto();
-  const pont = window.CineanimAndroid || (window.parent && window.parent.CineanimAndroid);
-  if (pont && pont.enregistrerPhoto) {
-    const lecteur = new FileReader();
-    lecteur.onload = () => {
-      let ok = false;
-      try { ok = pont.enregistrerPhoto(String(lecteur.result).split(',')[1], nom); } catch {}
-      if (!ok) photosAGarder.push({ blob, nom });
-    };
-    lecteur.readAsDataURL(blob);
-  } else {
-    photosAGarder.push({ blob, nom });
-  }
-}
-
-function garderLesPhotos() {
-  while (photosAGarder.length) {
-    const { blob, nom } = photosAGarder.shift();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = nom + '.jpg';
-    document.body.append(a);
-    a.click();
-    a.remove();
   }
 }
 
